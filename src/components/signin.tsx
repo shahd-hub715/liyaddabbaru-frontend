@@ -1,7 +1,74 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { I } from '../lib/core';
-import { ApiError, GOOGLE_CLIENT_ID } from '../lib/api';
+import { D, I, SYNC, allNotes, go } from '../lib/core';
+import { ApiError, GOOGLE_CLIENT_ID, apiEnabled, getToken } from '../lib/api';
 import { sendEmailCode, signInWithGoogle, verifyEmailCode } from '../lib/sync';
+
+// ---------- gentle reminder for people using the app without an account ----------
+
+const NUDGE_KEY = 'liyaddabbaru.signinNudge'; // {n: visits it was shown on, at: when it was last shown}
+const NUDGE_MAX = 2;
+const NUDGE_GAP = 7 * 864e5; // the second (last) showing waits at least a week
+let nudgeVisit: 'unknown' | 'show' | 'skip' = 'unknown'; // decided once per page load
+let nudgeCounted = false;
+
+const nudgeState = (): { n: number; at: number } => {
+  try {
+    const v = JSON.parse(localStorage.getItem(NUDGE_KEY) || 'null');
+    if (v && typeof v.n === 'number') return { n: v.n, at: Number(v.at) || 0 };
+  } catch {
+    /* ignore */
+  }
+  return { n: 0, at: 0 };
+};
+const saveNudge = (v: { n: number; at: number }) => {
+  try {
+    localStorage.setItem(NUDGE_KEY, JSON.stringify(v));
+  } catch {
+    /* storage unavailable: it simply may show again */
+  }
+};
+
+/** Shown on Home once the local notebook holds something worth keeping; never to signed-in people. */
+export function SignInNudge() {
+  const [, redraw] = useState(0);
+  const local = apiEnabled && !SYNC.user && !getToken() && SYNC.state === 'local';
+  const worthKeeping = allNotes().length >= 1 || Object.keys(D.saved).length >= 3;
+  if (local && worthKeeping && nudgeVisit === 'unknown') {
+    const st = nudgeState();
+    nudgeVisit = st.n < NUDGE_MAX && (st.n === 0 || Date.now() - st.at >= NUDGE_GAP) ? 'show' : 'skip';
+  }
+  const show = local && worthKeeping && nudgeVisit === 'show';
+  useEffect(() => {
+    if (!show || nudgeCounted) return;
+    nudgeCounted = true;
+    saveNudge({ n: nudgeState().n + 1, at: Date.now() });
+  }, [show]);
+  if (!show) return null;
+  const close = () => {
+    nudgeVisit = 'skip';
+    redraw((x) => x + 1);
+  };
+  const signIn = () => {
+    saveNudge({ n: NUDGE_MAX, at: Date.now() }); // they acted on it: no more reminders
+    nudgeVisit = 'skip';
+    go('settings');
+    setTimeout(() => document.querySelector('.signin')?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 80);
+  };
+  return (
+    <section className="nudge" role="status">
+      <span className="nudge-ico">{I('cloud', 18)}</span>
+      <span className="grow" style={{ lineHeight: 1.7 }}>
+        احفظ دفترك بحسابك حتى تقدر تفتحه من أي جهاز، وما يضيع إذا مسحت بيانات المتصفح.
+      </span>
+      <button className="btn btn-p sm" onClick={signIn}>
+        سجّل الدخول
+      </button>
+      <button className="ib sm" aria-label="إخفاء التذكير" onClick={close}>
+        {I('x')}
+      </button>
+    </section>
+  );
+}
 
 let gisLoading: Promise<void> | null = null;
 const loadGoogle = (): Promise<void> => {

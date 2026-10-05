@@ -44,6 +44,7 @@ import {
   viewOf,
 } from '../lib/core';
 import { AyahTools } from '../components/ayah';
+import { SignInNudge } from '../components/signin';
 import { getIdx } from './notebook';
 
 // ================= home =================
@@ -161,6 +162,7 @@ export function Home() {
           />
         </form>
       </header>
+      <SignInNudge />
       <div className="split hsplit" style={{ alignItems: 'stretch' }}>
         <section className="card hero">
           <span className="pattern" />

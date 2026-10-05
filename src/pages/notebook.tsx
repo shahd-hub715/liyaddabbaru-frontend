@@ -1102,12 +1102,10 @@ export function Welcome() {
                       <span style={{ fontWeight: '500' }}>{n.name}</span>
                       <span className="lbl" style={{ fontSize: 'var(--fs-xs)' }}>
                         {p.id === 'asma'
-                          ? 'مجموعة لكل اسم، فيها أمثلة'
+                          ? 'مجموعة لكل اسم'
                           : kc.length
                             ? kc.map((x?: any) => x.name).join('، ')
-                            : n.ayat.length
-                              ? 'فيها ' + ayW(n.ayat.length) + ' للبداية'
-                              : 'مجموعة'}
+                            : 'مجموعة'}
                       </span>
                     </span>
                   </button>

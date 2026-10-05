@@ -3293,6 +3293,39 @@ a.card:hover {
   border-color: var(--danger);
   box-shadow: 0 0 0 1px var(--danger);
 }
+/* sign-in reminder on Home (local-only notebooks) */
+.nudge {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-5);
+  padding: var(--sp-4) var(--sp-4) var(--sp-4) var(--sp-7);
+  border-radius: var(--r-xl);
+  background: var(--tint2);
+  border: 1px solid var(--tint-l);
+  color: var(--tint-t);
+  font-size: var(--fs-base);
+  animation: wq-fade 0.2s ease-out;
+}
+.nudge-ico {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--tint);
+  color: var(--acc-t);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+@media (max-width: 640px) {
+  .nudge {
+    flex-wrap: wrap;
+    padding: var(--sp-5);
+  }
+  .nudge .grow {
+    flex-basis: calc(100% - 90px);
+  }
+}
 .tlink[disabled] {
   opacity: 0.6;
   cursor: default;
