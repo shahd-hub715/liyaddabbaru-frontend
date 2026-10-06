@@ -333,6 +333,22 @@ export function Groups() {
     setSel([]);
     setSelMode(false);
   };
+  // one ayah out of this group (and, when sub-group ayat are shown, out of the sub-groups below it);
+  // Saved and every other group keep it
+  const removeOne = (k?: any) => {
+    const ids = [cur];
+    for (let i = 0; i < ids.length; i++) kids(ids[i]).forEach((c?: any) => ids.push(c.id));
+    const scope = deep ? ids : [cur];
+    undoable('أُزيلت ' + ref(k) + ' من «' + node.name + '»', () =>
+      nodesWith((N?: any) =>
+        N.map((n?: any) =>
+          scope.indexOf(n.id) > -1 && n.ayat.indexOf(k) > -1
+            ? Object.assign({}, n, { ayat: n.ayat.filter((a?: any) => a !== k) })
+            : n,
+        ),
+      ),
+    );
+  };
   const whereOf = (k?: any) => {
     if (direct.indexOf(k) > -1) return '';
     const d = desc(cur).find((id?: any) => byId(id).ayat.indexOf(k) > -1);
@@ -967,6 +983,13 @@ export function Groups() {
                                 التفسير
                               </button>
                             )}
+                            <button
+                              className="tlink rmay"
+                              aria-label={'إزالة ' + ref(k) + ' من المجموعة'}
+                              onClick={() => removeOne(k)}
+                            >
+                              {I('x', 14)}إزالة من المجموعة
+                            </button>
                           </span>
                         )}
                         {!selMode && K.length > 0 && direct.indexOf(k) > -1 && (

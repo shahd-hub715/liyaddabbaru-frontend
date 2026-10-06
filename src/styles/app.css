@@ -1688,6 +1688,14 @@ h3 {
   line-height: 1.95;
   cursor: pointer;
 }
+/* per-ayah "remove from group": quiet, pushed to the far end of the action row */
+.tlink.rmay {
+  margin-inline-start: auto;
+  text-decoration: none;
+}
+.tlink.rmay:hover {
+  color: var(--danger);
+}
 .mvchip {
   display: inline-flex;
   align-items: center;

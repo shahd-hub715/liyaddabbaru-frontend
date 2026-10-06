@@ -438,7 +438,106 @@ export const presetNodes = (pick: string[] = SEED.presets.map((p?: any) => p.id)
     .map((n?: any) => Object.assign({}, n, { parent: n.parent || null }));
 };
 export let D: any = fix(lsGet());
-export let U: any = { route: { p: 'home' }, dlg: null, toast: null };
+
+// ================= URL routing =================
+// Every screen has a stable path (/groups/<id>, /read/surah/2?a=2:255, …). The whole route object,
+// including the "back" target of the root and print pages, also rides in history.state, which a
+// refresh keeps; a typed or shared URL is parsed instead.
+const ONE_SHOT = ['add', 'ts']; // signals for the page that just opened, not part of where you are
+const cleanRoute = (r?: any): any => {
+  if (!r || typeof r !== 'object') return r;
+  const o: any = {};
+  Object.keys(r).forEach((k) => {
+    if (ONE_SHOT.indexOf(k) < 0 && r[k] !== undefined) o[k] = k === 'back' ? cleanRoute(r[k]) : r[k];
+  });
+  return o;
+};
+export function routeUrl(r?: any): string {
+  const e = encodeURIComponent;
+  const q = new URLSearchParams();
+  let path = '/' + (r.p || '');
+  if (r.p === 'home' || !r.p) path = '/';
+  else if (r.p === 'read') {
+    path = '/read/' + (r.v || 'surah') + '/' + (r.n || 1);
+    if (r.sel) q.set('a', r.sel);
+  } else if (r.p === 'groups') path = r.cur ? '/groups/' + e(r.cur) : '/groups';
+  else if (r.p === 'search' && r.q) q.set('q', r.q);
+  else if (r.p === 'mushaf' && r.tab) q.set('tab', r.tab);
+  else if (r.p === 'root') {
+    path = '/root/' + e(r.r);
+    if (r.from) q.set('from', r.from);
+  } else if (r.p === 'print') {
+    path = '/print/' + e(r.kind || '');
+    ['id', 'k', 'r'].forEach((f) => r[f] != null && q.set(f, String(r[f])));
+  }
+  const qs = q.toString();
+  return path + (qs ? '?' + qs : '');
+}
+function parseUrl(): any {
+  try {
+    const [p, a, b] = location.pathname.split('/').filter(Boolean).map(decodeURIComponent);
+    const q = new URLSearchParams(location.search);
+    const get = (k: string) => q.get(k) || undefined;
+    switch (p) {
+      case undefined:
+        return { p: 'home' };
+      case 'read': {
+        const v = a in LIM ? a : 'surah';
+        return cleanRoute({ p: 'read', v: v, n: Math.min(Math.max(parseInt(b, 10) || 1, 1), LIM[v]), sel: get('a') });
+      }
+      case 'groups':
+        return a ? { p: 'groups', cur: a } : { p: 'groups' };
+      case 'search':
+        return cleanRoute({ p: 'search', q: get('q') });
+      case 'mushaf':
+        return cleanRoute({ p: 'mushaf', tab: get('tab') });
+      case 'root':
+        return Number(a) ? { p: 'root', r: Number(a), from: get('from') || null } : { p: 'home' };
+      case 'print':
+        return cleanRoute({ p: 'print', kind: a, id: get('id'), k: get('k'), r: get('r') && Number(get('r')) });
+      case 'notes':
+      case 'saved':
+      case 'settings':
+        return { p: p };
+    }
+  } catch (e) {}
+  return { p: 'home' };
+}
+const hereUrl = () => location.pathname + location.search;
+function startRoute(): any {
+  try {
+    const st = history.state && history.state.route;
+    const r = st && routeUrl(st) === hereUrl() ? st : parseUrl();
+    history.replaceState({ route: cleanRoute(r) }, '', routeUrl(r)); // also tidies unknown paths to their page
+    return r;
+  } catch (e) {
+    return { p: 'home' };
+  }
+}
+let fromHistory = false; // true while applying a back/forward step, so it isn't pushed again
+function syncUrl(r?: any) {
+  if (fromHistory) return;
+  try {
+    const url = routeUrl(r);
+    const st = { route: cleanRoute(r) };
+    // a new screen gets its own history entry; changes within the same screen (e.g. the selected ayah) don't
+    const samePage = url.split('?')[0] === location.pathname && r.p !== 'search';
+    if (url === hereUrl() || samePage) history.replaceState(st, '', url);
+    else history.pushState(st, '', url);
+  } catch (e) {}
+}
+export let U: any = { route: startRoute(), dlg: null, toast: null };
+try {
+  window.addEventListener('popstate', (e) => {
+    const r = (e.state && e.state.route) || parseUrl();
+    fromHistory = true;
+    try {
+      setU({ route: r, dlg: null, dlg2: null });
+    } finally {
+      fromHistory = false;
+    }
+  });
+} catch (e) {}
 // sync status shown in the sidebar: 'loading' | 'cloud' | 'local'
 export const SYNC: any = { state: 'local', user: null };
 export const subs = new Set<() => void>();
@@ -462,7 +561,9 @@ export function setD(patch?: any) {
   emit();
 }
 export function setU(patch?: any) {
+  const route = U.route;
   U = Object.assign({}, U, typeof patch === 'function' ? patch(U) : patch);
+  if (U.route !== route) syncUrl(U.route);
   emit();
 }
 // each ayah keeps its latest reflection (t) plus earlier ones (h, newest first)
